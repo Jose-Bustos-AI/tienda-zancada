@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZANCADA · Zapatillas que puedes girar</title>
+<meta name="description" content="Tienda de ejemplo de zapatillas con producto en 3D, filtros, carrito y pago de prueba. Hecha con código propio por Dania360.">
+<meta name="theme-color" content="#0c0d10">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff5a1f'/%3E%3Cpath d='M18 20h28L22 44h24' stroke='%230c0d10' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="modelos/zapatilla.glb" as="fetch" crossorigin>
+<link rel="stylesheet" href="css/estilos.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="carga" id="carga" aria-hidden="true">
+  <div class="carga__logo">ZANCADA</div>
+  <div class="carga__barra"><span id="carga-barra"></span></div>
+  <div class="carga__num" id="carga-num">0 %</div>
+</div>
+
+<a class="saltar" href="#app">Saltar al contenido</a>
+
+<div class="aviso">Tienda de demostración: puedes comprar de prueba, no se cobra nada ni se envía nada.</div>
+
+<header class="cab" id="cab">
+  <div class="cab__in">
+    <a class="logo" href="#/" aria-label="ZANCADA, inicio"><span class="logo__z">Z</span>ANCADA</a>
+    <nav class="cab__nav" aria-label="Categorías">
+      <a href="#/catalogo/running">Running</a>
+      <a href="#/catalogo/urbanas">Urbanas</a>
+      <a href="#/catalogo/accesorios">Accesorios</a>
+      <a href="#/tallas">Encuentra tu talla</a>
+    </nav>
+    <div class="cab__acc">
+      <button class="icono" type="button" id="btn-buscar" aria-label="Buscar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <a class="icono" href="#/favoritos" aria-label="Favoritos">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
+        <span class="burbuja" id="num-fav" hidden>0</span>
+      </a>
+      <button class="icono" type="button" id="btn-carrito" aria-label="Abrir el carrito">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11H6.2z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>
+        <span class="burbuja" id="num-carrito" hidden>0</span>
+      </button>
+    </div>
+  </div>
+  <div class="buscador" id="buscador" hidden>
+    <div class="cab__in">
+      <label class="visual-oculto" for="campo-buscar">Buscar en la tienda</label>
+      <input id="campo-buscar" type="search" placeholder="Busca zapatillas, running, accesorios…" autocomplete="off">
+      <div class="resultados" id="resultados"></div>
+    </div>
+  </div>
+</header>
+
+<main id="app" tabindex="-1"></main>
+
+<footer class="pie">
+  <div class="pie__in">
+    <div>
+      <div class="logo logo--pie"><span class="logo__z">Z</span>ANCADA</div>
+      <p>Zapatillas pensadas en Murcia para correr, pasear y vivir la ciudad. Tienda de demostración hecha por Dania360.</p>
+    </div>
+    <div>
+      <h3>Tienda</h3>
+      <a href="#/catalogo/running">Running</a>
+      <a href="#/catalogo/urbanas">Urbanas</a>
+      <a href="#/catalogo/accesorios">Accesorios</a>
+    </div>
+    <div>
+      <h3>Ayuda</h3>
+      <a href="#/tallas">Guía de tallas</a>
+      <span>Envío gratis desde 80 €</span>
+      <span>Cambios gratis en 30 días</span>
+    </div>
+    <div>
+      <h3>Créditos</h3>
+      <span>Modelo 3D "Materials Variants Shoe" de The Khronos Group y Shopify, licencia CC BY 4.0.</span>
+      <span>Hecha con código propio por <a href="https://tiendas.dania360.com/">Dania360</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<aside class="cajon" id="cajon" aria-label="Carrito" aria-hidden="true">
+  <div class="cajon__fondo" data-cerrar></div>
+  <div class="cajon__panel" role="dialog" aria-modal="true" aria-labelledby="cajon-titulo">
+    <div class="cajon__cab">
+      <h2 id="cajon-titulo">Tu carrito</h2>
+      <button class="icono" type="button" data-cerrar aria-label="Cerrar el carrito">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="envio" id="envio"></div>
+    <div class="cajon__lineas" id="lineas"></div>
+    <div class="cajon__pie" id="cajon-pie"></div>
+  </div>
+</aside>
+
+<div class="tostada" id="tostada" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
