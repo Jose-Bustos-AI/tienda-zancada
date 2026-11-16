@@ -1,4 +1,4 @@
-import { PRODUCTOS, CATEGORIAS, ENVIO_GRATIS, COSTE_ENVIO, buscar, euros } from './datos.js';
+import { PRODUCTOS, CATEGORIAS, ENVIO_GRATIS, COSTE_ENVIO, CUPONES, buscar, euros } from './datos.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13,10 +13,15 @@ const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 let carrito = leer('zancada-carrito', []);
 let favoritos = leer('zancada-favoritos', []);
 let colorUno = 'midnight';
+let cupon = leer('zancada-cupon', null);
+if (!CUPONES[cupon]) cupon = null;
 
 const categoria = (id) => CATEGORIAS.find((c) => c.id === id)?.nombre || '';
 const subtotal = () => carrito.reduce((n, l) => n + buscar(l.id).precio * l.cantidad, 0);
 const unidades = () => carrito.reduce((n, l) => n + l.cantidad, 0);
+const descuento = () => (cupon ? Math.round(subtotal() * CUPONES[cupon] * 100) / 100 : 0);
+// Importe que cuenta para el envío gratis: lo que se paga por los productos.
+const base = () => subtotal() - descuento();
 
 function tostada(texto) {
   const t = $('#tostada');
@@ -43,7 +48,7 @@ function actualizarContadores() {
 }
 
 /* ---------- Carrito ---------- */
-function añadir(id, talla, color) {
+function añadir(id, talla, color, abrir = true) {
   const p = buscar(id);
   const c = color || p.colores[0].id;
   const linea = carrito.find((l) => l.id === id && l.talla === talla && l.color === c);
@@ -52,7 +57,7 @@ function añadir(id, talla, color) {
   guardar('zancada-carrito', carrito);
   actualizarContadores();
   pintarCajon();
-  abrirCajon();
+  if (abrir) abrirCajon();
 }
 
 function cambiar(i, delta) {
@@ -64,8 +69,8 @@ function cambiar(i, delta) {
 }
 
 function barraEnvio() {
-  const falta = ENVIO_GRATIS - subtotal();
-  const pct = Math.min(subtotal() / ENVIO_GRATIS, 1) * 100;
+  const falta = ENVIO_GRATIS - base();
+  const pct = Math.min(base() / ENVIO_GRATIS, 1) * 100;
   const texto = carrito.length === 0
     ? `Envío gratis a partir de ${euros(ENVIO_GRATIS)}`
     : falta > 0 ? `Te faltan <b>${euros(falta)}</b> para el envío gratis` : '<b>¡Tienes el envío gratis!</b>';
@@ -94,9 +99,34 @@ function pintarCajon() {
     $('#cajon-pie').innerHTML = '<a class="btn btn--ancho" href="#/catalogo/todo" data-cerrar>Ver la tienda</a>';
     return;
   }
-  $('#lineas').innerHTML = carrito.map((l, i) => lineaHTML(l, i)).join('');
-  $('#cajon-pie').innerHTML = `<div class="total"><span>Subtotal</span><span>${euros(subtotal())}</span></div>
+  $('#lineas').innerHTML = carrito.map((l, i) => lineaHTML(l, i)).join('') + sugerenciaHTML();
+  $('#cajon-pie').innerHTML = `${cuponHTML()}
+    <dl class="cuentas"><dt>Subtotal</dt><dd>${euros(subtotal())}</dd>${descuento() ? `<dt>Descuento</dt><dd>−${euros(descuento())}</dd>` : ''}</dl>
+    <div class="total"><span>Total sin envío</span><span>${euros(base())}</span></div>
     <a class="btn btn--ancho" href="#/pago" data-cerrar>Finalizar compra</a>`;
+}
+
+/* Con unas zapatillas en el carrito y sin kit de limpieza, se propone el kit. */
+function sugerenciaHTML() {
+  const kit = buscar('kit');
+  const hayZapatillas = carrito.some((l) => buscar(l.id).categoria !== 'accesorios');
+  if (!kit || !hayZapatillas || carrito.some((l) => l.id === 'kit')) return '';
+  return `<div class="sugerencia">
+    <img src="${kit.imagen}" alt="" style="--fondo:${kit.fondo}">
+    <div><small>Para que te duren más</small><b>${esc(kit.nombre)}</b><span>${euros(kit.precio)}${kit.antes ? ` <s>${euros(kit.antes)}</s>` : ''}</span></div>
+    <button class="btn btn--hueco" type="button" data-sugerir="kit">Añadir</button>
+  </div>`;
+}
+
+function cuponHTML() {
+  if (cupon) {
+    return `<div class="cupon cupon--puesto"><span>Código <b>${esc(cupon)}</b>: −${Math.round(CUPONES[cupon] * 100)} %</span><button class="quitar" type="button" data-quitar-cupon>Quitar</button></div>`;
+  }
+  return `<form class="cupon" data-cupon novalidate>
+    <label class="visual-oculto" for="campo-cupon">Código de descuento</label>
+    <input id="campo-cupon" name="cupon" type="text" placeholder="Código de descuento" autocomplete="off" autocapitalize="characters">
+    <button class="btn btn--hueco" type="submit">Aplicar</button>
+  </form><p class="cupon__error" id="cupon-error" role="alert"></p>`;
 }
 
 let focoPrevio = null;
@@ -119,7 +149,25 @@ $('#cajon').addEventListener('click', (e) => {
   if (c) return cambiar(+c.dataset.cant, +c.dataset.delta);
   const q = e.target.closest('[data-quitar]');
   if (q) return cambiar(+q.dataset.quitar, -999);
+  const sug = e.target.closest('[data-sugerir]');
+  if (sug) { const p = buscar(sug.dataset.sugerir); añadir(p.id, p.tallas[0].talla, null, false); tostada(`${p.nombre} añadido al carrito`); return; }
+  if (e.target.closest('[data-quitar-cupon]')) { cupon = null; guardar('zancada-cupon', cupon); pintarCajon(); return; }
   if (e.target.closest('[data-cerrar]')) cerrarCajon();
+});
+$('#cajon').addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-cupon]');
+  if (!f) return;
+  e.preventDefault();
+  const codigo = f.cupon.value.trim().toUpperCase();
+  if (CUPONES[codigo]) {
+    cupon = codigo;
+    guardar('zancada-cupon', cupon);
+    pintarCajon();
+    tostada(`Código aplicado: ${Math.round(CUPONES[codigo] * 100)} % de descuento`);
+  } else {
+    $('#cupon-error').textContent = codigo ? 'Ese código no existe. Prueba con BIENVENIDA10.' : 'Escribe un código.';
+    f.cupon.focus();
+  }
 });
 $('#btn-carrito').addEventListener('click', () => { pintarCajon(); abrirCajon(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#cajon').classList.contains('abierto')) cerrarCajon(); });
@@ -195,7 +243,7 @@ function vistaInicio() {
       </div>
     </div>
   </section>
-  <div class="cinta" aria-hidden="true"><div class="cinta__pista">${Array(2).fill('<span>Envío gratis desde 80 €</span><span>Cambios gratis en 30 días</span><span>Producto en 3D</span><span>Pago seguro</span><span>Diseñadas en Murcia</span>').join('')}</div></div>
+  <div class="cinta" aria-hidden="true"><div class="cinta__pista">${Array(2).fill('<span>Envío gratis desde 80 €</span><span>Cambios gratis en 30 días</span><span>Producto en 3D</span><span>10 % con el código BIENVENIDA10</span><span>Diseñadas en Murcia</span>').join('')}</div></div>
   <section class="bloque envoltura">
     <div class="ventajas">
       <div class="ventaja revela"><b data-cuenta="9">0</b><span>modelos en la colección</span></div>
@@ -225,6 +273,18 @@ function vistaInicio() {
       <div><span class="etiqueta">Sin dudas con la talla</span><h2 class="bloque__titulo">Mide tu pie, <em>acierta seguro</em></h2></div>
     </div>
     ${calculadoraTallas()}
+  </section>
+  <section class="bloque envoltura" style="padding-top:0">
+    <div class="faq">
+      <div><span class="etiqueta">Antes de pedir</span><h2 class="bloque__titulo">Preguntas <em>frecuentes</em></h2></div>
+      <div>
+        <details class="acordeon" open><summary>¿Y si no acierto con la talla?</summary><p>Tienes 30 días para cambiarlas gratis. Para no fallar, mide tu pie con la calculadora de esta página: te da tu número en EU, US y UK.</p></details>
+        <details class="acordeon"><summary>¿Cuánto tarda y cuánto cuesta el envío?</summary><p>El estándar llega en 24-48 h en península y cuesta ${euros(COSTE_ENVIO.estandar)}; es gratis desde ${euros(ENVIO_GRATIS)}. El exprés llega al día siguiente por ${euros(COSTE_ENVIO.expres)}.</p></details>
+        <details class="acordeon"><summary>¿Puedo ver bien la zapatilla antes de comprarla?</summary><p>La Zancada Uno está en 3D: la giras con el dedo o el ratón y le cambias el color en vivo. El resto de modelos tienen su foto y sus detalles en la ficha.</p></details>
+        <details class="acordeon"><summary>¿Hay algún descuento?</summary><p>Sí: con el código BIENVENIDA10 tienes un 10 % en tu primer pedido. Se escribe en el carrito.</p></details>
+        <details class="acordeon"><summary>¿Es una tienda de verdad?</summary><p>No. Es una tienda de demostración hecha por Dania360: la marca y los productos son inventados y el pago es de prueba, no se cobra nada.</p></details>
+      </div>
+    </div>
   </section>`;
   montarVisor($('#escenario'), true);
   activarCalculadora();
@@ -320,7 +380,8 @@ function vistaProducto(id) {
       </div>
     </section>
     ${relacionados.length ? `<section class="bloque" style="padding-top:0"><div class="bloque__cab"><h2 class="bloque__titulo">También te pueden <em>gustar</em></h2></div><div class="rejilla">${relacionados.map(tarjeta).join('')}</div></section>` : ''}
-  </div>`;
+  </div>
+  <div class="barra-compra" id="barra-compra"><div><b>${esc(p.nombre)}</b><span>${euros(p.precio)}</span></div><button class="btn" type="button" id="btn-añadir-2">Añadir</button></div>`;
   $$('.talla').forEach((b) => b.addEventListener('click', () => {
     talla = b.dataset.talla;
     $$('.talla').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
@@ -332,10 +393,16 @@ function vistaProducto(id) {
     $$('[data-color-ficha]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     $('#color-nombre').textContent = p.colores.find((c) => c.id === color).nombre;
   }));
-  $('#btn-añadir').addEventListener('click', () => {
-    if (!talla) { $('#error-talla').textContent = 'Elige tu talla para continuar.'; return; }
+  const comprar = () => {
+    if (!talla) {
+      $('#error-talla').textContent = 'Elige tu talla para continuar.';
+      $('.tallas').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
     añadir(p.id, talla, color);
-  });
+  };
+  $('#btn-añadir').addEventListener('click', comprar);
+  $('#btn-añadir-2').addEventListener('click', comprar);
   if (p.tresd) montarVisor($('#escenario-ficha'), false); else ocultarCarga();
   revelar();
 }
@@ -398,11 +465,11 @@ function vistaPago() {
   let paso = 1;
   const datos = leer('zancada-envio', { nombre: '', email: '', direccion: '', cp: '', ciudad: '', telefono: '' });
   let metodo = 'estandar';
-  const gastos = () => (metodo === 'expres' ? COSTE_ENVIO.expres : subtotal() >= ENVIO_GRATIS ? 0 : COSTE_ENVIO.estandar);
+  const gastos = () => (metodo === 'expres' ? COSTE_ENVIO.expres : base() >= ENVIO_GRATIS ? 0 : COSTE_ENVIO.estandar);
 
   const resumen = () => `<aside class="caja resumen"><h2>Resumen</h2>${carrito.map((l, i) => lineaHTML(l, i, false)).join('')}
-    <dl><dt>Subtotal</dt><dd>${euros(subtotal())}</dd><dt>Envío</dt><dd>${gastos() === 0 ? 'Gratis' : euros(gastos())}</dd></dl>
-    <div class="total"><span>Total</span><span>${euros(subtotal() + gastos())}</span></div></aside>`;
+    <dl><dt>Subtotal</dt><dd>${euros(subtotal())}</dd>${descuento() ? `<dt>Descuento (${esc(cupon)})</dt><dd>−${euros(descuento())}</dd>` : ''}<dt>Envío</dt><dd>${gastos() === 0 ? 'Gratis' : euros(gastos())}</dd></dl>
+    <div class="total"><span>Total</span><span>${euros(base() + gastos())}</span></div></aside>`;
 
   const campo = (id, etiqueta, tipo = 'text', ancho = false, extra = '') => `<label class="campo ${ancho ? 'campo--ancho' : ''}">${etiqueta}<input id="${id}" name="${id}" type="${tipo}" value="${esc(datos[id] || '')}" ${extra} required></label>`;
 
@@ -416,7 +483,7 @@ function vistaPago() {
         <div class="botones-pago"><a class="btn btn--hueco" href="#/catalogo/todo">Seguir comprando</a><button class="btn" type="submit">Continuar</button></div></form>`;
     } else if (paso === 2) {
       cuerpo = `<form class="caja" id="form-paso"><h2>¿Cuándo lo quieres?</h2>
-        <label class="opcion"><input type="radio" name="metodo" value="estandar" ${metodo === 'estandar' ? 'checked' : ''}><span>Estándar<small>Entrega en 24-48 h</small></span><b>${subtotal() >= ENVIO_GRATIS ? 'Gratis' : euros(COSTE_ENVIO.estandar)}</b></label>
+        <label class="opcion"><input type="radio" name="metodo" value="estandar" ${metodo === 'estandar' ? 'checked' : ''}><span>Estándar<small>Entrega en 24-48 h</small></span><b>${base() >= ENVIO_GRATIS ? 'Gratis' : euros(COSTE_ENVIO.estandar)}</b></label>
         <label class="opcion"><input type="radio" name="metodo" value="expres" ${metodo === 'expres' ? 'checked' : ''}><span>Exprés<small>Mañana antes de las 14:00</small></span><b>${euros(COSTE_ENVIO.expres)}</b></label>
         <div class="botones-pago"><button class="btn btn--hueco" type="button" data-atras>Atrás</button><button class="btn" type="submit">Continuar</button></div></form>`;
     } else {
@@ -424,7 +491,7 @@ function vistaPago() {
         <div class="nota-prueba">Pago de demostración: no se pide tarjeta y no se cobra nada. Al confirmar verás cómo termina un pedido real.</div>
         <label class="opcion"><input type="radio" name="pago" value="demo" checked><span>Pago de prueba<small>Simula un pago con tarjeta aceptado</small></span></label>
         <p style="color:var(--suave);font-size:14px">Enviamos a <b style="color:var(--blanco)">${esc(datos.nombre)}</b>, ${esc(datos.direccion)}, ${esc(datos.cp)} ${esc(datos.ciudad)}.</p>
-        <div class="botones-pago"><button class="btn btn--hueco" type="button" data-atras>Atrás</button><button class="btn" type="submit">Pagar ${euros(subtotal() + gastos())}</button></div></form>`;
+        <div class="botones-pago"><button class="btn btn--hueco" type="button" data-atras>Atrás</button><button class="btn" type="submit">Pagar ${euros(base() + gastos())}</button></div></form>`;
     }
     app.innerHTML = `<div class="envoltura"><section class="pago"><div>
       <ol class="pasos">${etapas.map((e, i) => `<li class="${i + 1 === paso ? 'activo' : i + 1 < paso ? 'hecho' : ''}">${i + 1}. ${e}</li>`).join('')}</ol>
@@ -445,7 +512,7 @@ function vistaPago() {
         if (!ok) { tostada('Revisa los campos marcados en rojo'); f.querySelector('[aria-invalid=true]')?.focus(); return; }
         guardar('zancada-envio', datos);
       }
-      if (paso === 3) return confirmar(subtotal() + gastos());
+      if (paso === 3) return confirmar(base() + gastos());
       paso += 1;
       pintar();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -460,6 +527,8 @@ function confirmar(total) {
   const numero = 'ZC-' + Math.floor(100000 + Math.random() * 900000);
   carrito = [];
   guardar('zancada-carrito', carrito);
+  cupon = null;
+  guardar('zancada-cupon', cupon);
   actualizarContadores();
   sessionStorage.setItem('zancada-pedido', JSON.stringify({ numero, total }));
   location.hash = '#/gracias';
@@ -528,6 +597,9 @@ function revelar() {
 
 window.addEventListener('scroll', () => {
   $('#cab').classList.toggle('on', scrollY > 10);
+  // En el móvil, cuando el botón de compra de la ficha queda arriba, fuera de la pantalla, aparece una barra fija abajo.
+  const barra = $('#barra-compra');
+  if (barra) barra.classList.toggle('ver', $('#btn-añadir').getBoundingClientRect().bottom < 0);
   const img = $('#parallax');
   if (img) {
     const r = img.parentElement.getBoundingClientRect();

@@ -301,12 +301,46 @@ details.acordeon ul { margin: 0 0 16px; padding-left: 18px; color: var(--suave);
 .logo--pie { margin-bottom: 14px; }
 
 /* Avisos */
-.tostada { position: fixed; left: 50%; bottom: 24px; z-index: 120; transform: translate(-50%, 140%); background: var(--blanco); color: var(--negro); padding: 14px 20px; border-radius: 16px; font-weight: 600; box-shadow: 0 20px 50px -20px rgb(0 0 0 / 0.6); transition: transform 0.45s var(--curva); max-width: calc(100vw - 32px); }
+.tostada { position: fixed; left: 50%; bottom: 24px; z-index: 120; transform: translate(-50%, calc(100% + 60px)); background: var(--blanco); color: var(--negro); padding: 14px 20px; border-radius: 16px; font-weight: 600; box-shadow: 0 20px 50px -20px rgb(0 0 0 / 0.6); transition: transform 0.45s var(--curva); max-width: calc(100vw - 32px); }
 .tostada.ver { transform: translate(-50%, 0); }
 
 /* Aparición al hacer scroll */
 .revela { opacity: 0; transform: translateY(30px); transition: opacity 0.8s var(--curva), transform 0.8s var(--curva); }
 .revela.dentro { opacity: 1; transform: none; }
+
+/* Carrito: código de descuento, cuentas y sugerencia */
+.cupon { display: flex; gap: 8px; }
+.cupon input { flex: 1; min-width: 0; background: var(--negro); border: 1px solid var(--linea); border-radius: 999px; padding: 11px 16px; color: var(--blanco); font: inherit; font-size: 14px; text-transform: uppercase; }
+.cupon input::placeholder { text-transform: none; color: var(--suave); }
+.cupon input:focus { border-color: var(--acento); outline: none; }
+.cupon .btn { padding: 11px 18px; font-size: 14px; }
+.cupon--puesto { align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px dashed var(--acento-2); border-radius: 14px; font-size: 14px; }
+.cupon--puesto b { color: var(--acento-2); }
+.cupon__error { margin: -4px 0 0; font-size: 13px; color: #ff8b6b; }
+.cupon__error:empty { display: none; }
+.cuentas { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin: 0; font-size: 14.5px; }
+.cuentas dt { color: var(--suave); }
+.cuentas dd { margin: 0; text-align: right; }
+.sugerencia { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; margin: 14px 0 6px; padding: 12px; border: 1px dashed rgb(255 255 255 / 0.22); border-radius: 18px; }
+.sugerencia img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--fondo); }
+.sugerencia small { display: block; font-size: 12px; color: var(--acento-2); }
+.sugerencia b { display: block; font-size: 14.5px; }
+.sugerencia span { font-size: 14px; color: var(--suave); }
+.sugerencia .btn { padding: 9px 16px; font-size: 13.5px; }
+
+/* Preguntas frecuentes */
+.faq { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(24px, 6vw, 80px); align-items: start; }
+.faq details.acordeon:first-child { border-top: 1px solid var(--linea); }
+.faq details.acordeon summary { font-size: 17px; padding: 20px 0; gap: 16px; }
+.faq details.acordeon p { margin: 0 0 20px; color: var(--suave); max-width: 60ch; }
+
+/* Ficha: barra de compra fija en el móvil */
+.barra-compra { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgb(12 13 16 / 0.92); backdrop-filter: blur(14px); border-top: 1px solid var(--linea); transform: translateY(110%); transition: transform 0.4s var(--curva); }
+.barra-compra.ver { transform: none; }
+.barra-compra div { min-width: 0; display: grid; }
+.barra-compra b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barra-compra span { font-size: 14px; color: var(--suave); }
+.barra-compra .btn { flex: none; padding: 12px 24px; }
 
 @media (max-width: 1080px) {
   .portada__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -316,7 +350,11 @@ details.acordeon ul { margin: 0 0 16px; padding-left: 18px; color: var(--suave);
 }
 
 @media (max-width: 860px) {
-  .cab__nav { display: none; }
+  .cab__in { flex-wrap: wrap; height: auto; min-height: 60px; row-gap: 0; }
+  .cab > .cab__in { padding-top: 9px; }
+  .cab__nav { order: 3; flex: 0 0 100%; gap: 22px; overflow-x: auto; white-space: nowrap; padding: 6px 0 12px; font-size: 13.5px; scrollbar-width: none; }
+  .cab__nav::-webkit-scrollbar { display: none; }
+  .barra-compra { display: flex; }
   .portada { min-height: 0; }
   .portada__grid { grid-template-columns: minmax(0, 1fr); padding-top: 24px; }
   .escenario { height: 46vh; min-height: 300px; }
@@ -328,6 +366,7 @@ details.acordeon ul { margin: 0 0 16px; padding-left: 18px; color: var(--suave);
 @media (max-width: 560px) {
   .envoltura, .cab__in, .portada__grid { padding-inline: 16px; }
   .campos { grid-template-columns: 1fr; }
+  .faq { grid-template-columns: minmax(0, 1fr); }
   .ventajas { grid-template-columns: 1fr 1fr; gap: 10px; }
   .ventaja { padding: 18px; }
   .pie__in { grid-template-columns: 1fr; }

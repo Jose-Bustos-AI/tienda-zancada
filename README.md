@@ -10,6 +10,9 @@ Tienda de zapatillas programada desde cero, sin plantillas ni plataforma. La zap
 - Cambio de color sobre el propio modelo 3D (tres variantes de material)
 - Tienda de una sola página: rutas con `#/`, sin recargar
 - Carrito lateral con barra de envío gratis, favoritos y carrito guardados en el navegador
+- Código de descuento BIENVENIDA10 en el carrito y sugerencia del kit de limpieza
+- En el móvil, categorías deslizables en la cabecera y barra fija de compra en la ficha
+- Preguntas frecuentes desplegables en la portada
 - Calculadora de tallas: mides tu pie en centímetros y te da tu número en EU, US y UK
 - Pago de demostración en tres pasos (datos, entrega y pago) con validación de campos
 - Respeta a quien pide menos animación en su dispositivo
