@@ -59,6 +59,7 @@ function alisar(escena) {
     o.material.metalness = 0;
     o.material.roughness = 0.88;
     o.material.envMapIntensity = 0.75;
+    if (o.material.map) { o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
     o.material.needsUpdate = true;
   });
 }

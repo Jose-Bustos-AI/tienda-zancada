@@ -3,7 +3,7 @@
 // así no se abre un contexto 3D por tarjeta (los móviles admiten muy pocos a la vez).
 
 const reducir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const LADO = 440;
+const LADO = Math.min(960, Math.round(480 * Math.min(window.devicePixelRatio || 1, 2)));
 const estados = new Map(); // lienzo -> estado
 let motor = null;
 let cargandoMotor = null;
