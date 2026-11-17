@@ -665,7 +665,7 @@ function ruta() {
     default: vistaNoEncontrada();
   }
   revelar();
-  if (partes[0] !== 'pago') window.scrollTo({ top: 0 });
+  if (partes[0] !== 'pago') window.scrollTo({ top: 0, behavior: 'instant' });
   app.focus({ preventScroll: true });
 }
 window.addEventListener('hashchange', ruta);
