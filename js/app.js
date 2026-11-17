@@ -1,11 +1,10 @@
 import { PRODUCTOS, CATEGORIAS, ENVIO_GRATIS, COSTE_ENVIO, CUPONES, buscar, euros } from './datos.js';
-import { htmlFlotante, animarFlotantes } from './flotante.js';
+import { vigilarTarjetas3D } from './tarjetas3d.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const app = $('#app');
-const MODELO = 'modelos/zapatilla.glb';
 let visor = null;
 
 /* ---------- Estado guardado en el navegador ---------- */
@@ -192,10 +191,11 @@ function tarjeta(p) {
   const img = p.tresd ? `img/uno-${colorUno}.webp` : p.imagen;
   return `<article class="tarjeta revela">
     <a class="tarjeta__foto" href="#/producto/${p.id}" style="--fondo:${p.fondo}" tabindex="-1" aria-hidden="true">
-      ${p.tresd ? `<img src="${img}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${p.imagen}'">` : htmlFlotante(p)}
+      <img src="${img}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${p.imagen}'">
+      ${p.modelo ? `<canvas class="tarjeta__3d" data-modelo="${p.modelo}" data-giro="${p.giro || 0}" data-id="${p.id}"></canvas>` : ''}
     </a>
     <div class="tarjeta__marcas">
-      ${p.tresd ? '<span class="marca marca--3d">3D</span>' : ''}
+      ${p.modelo ? '<span class="marca marca--3d">3D</span>' : ''}
       ${p.nuevo ? '<span class="marca">Nuevo</span>' : ''}
       ${p.antes ? `<span class="marca marca--oferta">−${Math.round((1 - p.precio / p.antes) * 100)} %</span>` : ''}
     </div>
@@ -281,27 +281,28 @@ function vistaInicio() {
       <div>
         <details class="acordeon" open><summary>¿Y si no acierto con la talla?</summary><p>Tienes 30 días para cambiarlas gratis. Para no fallar, mide tu pie con la calculadora de esta página: te da tu número en EU, US y UK.</p></details>
         <details class="acordeon"><summary>¿Cuánto tarda y cuánto cuesta el envío?</summary><p>El estándar llega en 24-48 h en península y cuesta ${euros(COSTE_ENVIO.estandar)}; es gratis desde ${euros(ENVIO_GRATIS)}. El exprés llega al día siguiente por ${euros(COSTE_ENVIO.expres)}.</p></details>
-        <details class="acordeon"><summary>¿Puedo ver bien la zapatilla antes de comprarla?</summary><p>La Zancada Uno está en 3D: la giras con el dedo o el ratón y le cambias el color en vivo. El resto de modelos tienen su foto y sus detalles en la ficha.</p></details>
+        <details class="acordeon"><summary>¿Puedo ver bien la zapatilla antes de comprarla?</summary><p>Sí. Las zapatillas están en 3D: las giras con el dedo o el ratón hacia cualquier lado, en la ficha y en el catálogo. A la Zancada Uno, además, le cambias el color en vivo.</p></details>
         <details class="acordeon"><summary>¿Hay algún descuento?</summary><p>Sí: con el código BIENVENIDA10 tienes un 10 % en tu primer pedido. Se escribe en el carrito.</p></details>
         <details class="acordeon"><summary>¿Es una tienda de verdad?</summary><p>No. Es una tienda de demostración hecha por Dania360: la marca y los productos son inventados y el pago es de prueba, no se cobra nada.</p></details>
       </div>
     </div>
   </section>`;
-  montarVisor($('#escenario'), true);
+  montarVisor($('#escenario'), true, buscar('uno'));
   activarCalculadora();
 }
 
-async function montarVisor(contenedor, enPortada) {
+async function montarVisor(contenedor, enPortada, p) {
   if (visor) { visor.destruir(); visor = null; }
   try {
     const { Visor3D } = await import('./visor3d.js');
     if (!contenedor.isConnected) return;
     visor = new Visor3D(contenedor, { giroAuto: true, inclinacion: enPortada });
-    await visor.cargar(MODELO, (p) => progresoCarga(p));
-    await visor.variante(colorUno);
+    const mio = visor;
+    await mio.cargar(p.modelo, (x) => progresoCarga(x), p.giro || 0);
+    if (p.tresd) await mio.variante(colorUno);
     contenedor.addEventListener('pointerdown', () => contenedor.classList.add('tocado'), { once: true });
   } catch (err) {
-    contenedor.innerHTML = `<img src="img/uno-${colorUno}.webp" alt="Zapatilla Zancada Uno" style="width:100%;height:100%;object-fit:contain" onerror="this.remove()">`;
+    contenedor.innerHTML = `<img src="${p.tresd ? `img/uno-${colorUno}.webp` : p.imagen}" alt="${esc(p.nombre)}" style="width:100%;height:100%;object-fit:${p.tresd ? 'contain' : 'cover'}" onerror="this.remove()">`;
     console.warn('No se pudo cargar el 3D', err);
   }
   ocultarCarga();
@@ -356,7 +357,7 @@ function vistaProducto(id) {
   app.innerHTML = `<div class="envoltura">
     <section class="producto">
       <div class="producto__media" style="--fondo:${fondo}">
-        ${p.tresd ? '<div class="escenario" id="escenario-ficha" role="img" aria-label="Zapatilla en 3D. Arrástrala para girarla."><div class="escenario__pista">Arrastra para girarla</div></div>' : htmlFlotante(p, { ficha: true, alt: p.nombre })}
+        ${p.modelo ? `<div class="escenario" id="escenario-ficha" role="img" aria-label="${esc(p.nombre)} en 3D. Arrástrala para girarla."><div class="escenario__pista escenario__pista--pastilla">Arrastra para girarla</div></div>` : `<img src="${p.imagen}" alt="${esc(p.nombre)}">`}
       </div>
       <div>
         <nav class="migas" aria-label="Estás en"><a href="#/">Inicio</a> / <a href="#/catalogo/${p.categoria}">${categoria(p.categoria)}</a> / ${esc(p.nombre)}</nav>
@@ -404,7 +405,7 @@ function vistaProducto(id) {
   };
   $('#btn-añadir').addEventListener('click', comprar);
   $('#btn-añadir-2').addEventListener('click', comprar);
-  if (p.tresd) montarVisor($('#escenario-ficha'), false); else ocultarCarga();
+  if (p.modelo) montarVisor($('#escenario-ficha'), false, p); else ocultarCarga();
   revelar();
 }
 
@@ -671,4 +672,4 @@ window.addEventListener('hashchange', ruta);
 actualizarContadores();
 pintarCajon();
 ruta();
-animarFlotantes();
+vigilarTarjetas3D();

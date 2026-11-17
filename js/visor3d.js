@@ -6,18 +6,97 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const cargador = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-let cacheModelo = null;
+const cacheModelos = new Map();
 
 function cargarModelo(url, alProgresar) {
-  if (!cacheModelo) {
-    cacheModelo = new Promise((ok, mal) => {
-      cargador.load(url, ok, (e) => {
+  if (!cacheModelos.has(url)) {
+    const promesa = new Promise((ok, mal) => {
+      cargador.load(url, (gltf) => { alisar(gltf.scene); ok(gltf); }, (e) => {
         if (alProgresar && e.total) alProgresar(e.loaded / e.total);
       }, mal);
     });
+    promesa.catch(() => cacheModelos.delete(url));
+    cacheModelos.set(url, promesa);
   }
-  return cacheModelo;
+  return cacheModelos.get(url);
 }
+
+// Los modelos escaneados llegan sin normales: se calculan suavizadas por posición,
+// para que no se vean las caras ni las costuras de la textura.
+function alisar(escena) {
+  escena.traverse((o) => {
+    if (!o.isMesh || o.geometry.attributes.normal) return;
+    const g = o.geometry;
+    const pos = g.attributes.position;
+    const ind = g.index;
+    const caras = ind ? ind.count / 3 : pos.count / 3;
+    const suma = new Map();
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+    const clave = (i) => `${pos.getX(i).toFixed(4)},${pos.getY(i).toFixed(4)},${pos.getZ(i).toFixed(4)}`;
+    const claves = new Array(pos.count);
+    for (let i = 0; i < pos.count; i++) claves[i] = clave(i);
+    for (let f = 0; f < caras; f++) {
+      const i0 = ind ? ind.getX(f * 3) : f * 3;
+      const i1 = ind ? ind.getX(f * 3 + 1) : f * 3 + 1;
+      const i2 = ind ? ind.getX(f * 3 + 2) : f * 3 + 2;
+      a.fromBufferAttribute(pos, i0); b.fromBufferAttribute(pos, i1); c.fromBufferAttribute(pos, i2);
+      n.subVectors(c, b).cross(a.sub(b));
+      for (const i of [i0, i1, i2]) {
+        const k = claves[i];
+        const v = suma.get(k);
+        if (v) v.add(n); else suma.set(k, n.clone());
+      }
+    }
+    const normales = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const v = suma.get(claves[i]);
+      if (!v) continue;
+      n.copy(v).normalize();
+      normales[i * 3] = n.x; normales[i * 3 + 1] = n.y; normales[i * 3 + 2] = n.z;
+    }
+    g.setAttribute('normal', new THREE.BufferAttribute(normales, 3));
+    o.material.flatShading = false;
+    o.material.metalness = 0;
+    o.material.roughness = 0.88;
+    o.material.envMapIntensity = 0.75;
+    o.material.needsUpdate = true;
+  });
+}
+
+let sombraComun = null;
+
+// Devuelve el modelo centrado, a escala y con su sombra, listo para añadir a una escena.
+export async function prepararModelo(url, { giro = 0, alProgresar } = {}) {
+  const gltf = await cargarModelo(url, alProgresar);
+  const modelo = gltf.scene.clone(true);
+  modelo.rotation.y = giro;
+  modelo.updateMatrixWorld(true);
+  const caja = new THREE.Box3().setFromObject(modelo);
+  const tam = caja.getSize(new THREE.Vector3());
+  const centro = caja.getCenter(new THREE.Vector3());
+  const escala = 2 / Math.max(tam.x, tam.y, tam.z);
+  modelo.scale.setScalar(escala);
+  modelo.position.sub(centro.multiplyScalar(escala));
+  sombraComun ||= texturaSombra();
+  const sombra = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.6, 1.4),
+    new THREE.MeshBasicMaterial({ map: sombraComun, transparent: true, depthWrite: false })
+  );
+  sombra.rotation.x = -Math.PI / 2;
+  sombra.position.y = -(tam.y * escala) / 2 - 0.02;
+  return { gltf, modelo, sombra };
+}
+
+export function luces(escena, renderer) {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  const luz = new THREE.DirectionalLight(0xffffff, 1.6);
+  luz.position.set(3, 5, 4);
+  escena.add(luz);
+}
+
+export { THREE };
 
 function texturaSombra() {
   const c = document.createElement('canvas');
@@ -43,12 +122,7 @@ export class Visor3D {
     contenedor.appendChild(this.renderer.domElement);
 
     this.escena = new THREE.Scene();
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    const luz = new THREE.DirectionalLight(0xffffff, 1.6);
-    luz.position.set(3, 5, 4);
-    this.escena.add(luz);
+    luces(this.escena, this.renderer);
 
     this.camara = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
     this.camara.position.set(2.6, 1.1, 3.4);
@@ -95,25 +169,12 @@ export class Visor3D {
     this.frame = requestAnimationFrame(this.bucle);
   }
 
-  async cargar(url, alProgresar) {
-    const gltf = await cargarModelo(url, alProgresar);
+  async cargar(url, alProgresar, giro = 0) {
+    const { gltf, modelo, sombra } = await prepararModelo(url, { giro, alProgresar });
+    if (this.destruido) return;
     this.gltf = gltf;
-    const modelo = gltf.scene.clone(true);
-    const caja = new THREE.Box3().setFromObject(modelo);
-    const tam = caja.getSize(new THREE.Vector3());
-    const centro = caja.getCenter(new THREE.Vector3());
-    const escala = 2 / Math.max(tam.x, tam.y, tam.z);
-    modelo.scale.setScalar(escala);
-    modelo.position.sub(centro.multiplyScalar(escala));
     this.modelo = modelo;
     this.grupo.add(modelo);
-
-    const sombra = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.6, 1.4),
-      new THREE.MeshBasicMaterial({ map: texturaSombra(), transparent: true, depthWrite: false })
-    );
-    sombra.rotation.x = -Math.PI / 2;
-    sombra.position.y = -(tam.y * escala) / 2 - 0.02;
     this.grupo.add(sombra);
     this.controles.target.set(0, 0, 0);
     this.entrada = performance.now();
@@ -178,6 +239,7 @@ export class Visor3D {
   }
 
   destruir() {
+    this.destruido = true;
     cancelAnimationFrame(this.frame);
     window.removeEventListener('pointermove', this.alMover);
     this.ro.disconnect();
