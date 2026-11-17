@@ -1,4 +1,5 @@
 import { PRODUCTOS, CATEGORIAS, ENVIO_GRATIS, COSTE_ENVIO, CUPONES, buscar, euros } from './datos.js';
+import { htmlFlotante, animarFlotantes } from './flotante.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -191,7 +192,7 @@ function tarjeta(p) {
   const img = p.tresd ? `img/uno-${colorUno}.webp` : p.imagen;
   return `<article class="tarjeta revela">
     <a class="tarjeta__foto" href="#/producto/${p.id}" style="--fondo:${p.fondo}" tabindex="-1" aria-hidden="true">
-      <img src="${img}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${p.imagen}'">
+      ${p.tresd ? `<img src="${img}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${p.imagen}'">` : htmlFlotante(p)}
     </a>
     <div class="tarjeta__marcas">
       ${p.tresd ? '<span class="marca marca--3d">3D</span>' : ''}
@@ -355,7 +356,7 @@ function vistaProducto(id) {
   app.innerHTML = `<div class="envoltura">
     <section class="producto">
       <div class="producto__media" style="--fondo:${fondo}">
-        ${p.tresd ? '<div class="escenario" id="escenario-ficha" role="img" aria-label="Zapatilla en 3D. Arrástrala para girarla."><div class="escenario__pista">Arrastra para girarla</div></div>' : `<img src="${p.imagen}" alt="${esc(p.nombre)}">`}
+        ${p.tresd ? '<div class="escenario" id="escenario-ficha" role="img" aria-label="Zapatilla en 3D. Arrástrala para girarla."><div class="escenario__pista">Arrastra para girarla</div></div>' : htmlFlotante(p, { ficha: true, alt: p.nombre })}
       </div>
       <div>
         <nav class="migas" aria-label="Estás en"><a href="#/">Inicio</a> / <a href="#/catalogo/${p.categoria}">${categoria(p.categoria)}</a> / ${esc(p.nombre)}</nav>
@@ -670,3 +671,4 @@ window.addEventListener('hashchange', ruta);
 actualizarContadores();
 pintarCajon();
 ruta();
+animarFlotantes();
