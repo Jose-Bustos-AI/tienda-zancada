@@ -95,6 +95,11 @@ export function luces(escena, renderer) {
   const luz = new THREE.DirectionalLight(0xffffff, 1.6);
   luz.position.set(3, 5, 4);
   escena.add(luz);
+  // Relleno suave por detrás y desde abajo: al girar la zapatilla, la cara de sombra no se queda negra
+  const relleno = new THREE.DirectionalLight(0xfff3e6, 0.55);
+  relleno.position.set(-4, 2.5, -4);
+  escena.add(relleno);
+  escena.add(new THREE.HemisphereLight(0xffffff, 0xe8dccd, 0.2));
 }
 
 export { THREE };

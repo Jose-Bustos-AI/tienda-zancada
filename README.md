@@ -28,7 +28,7 @@ y abre http://localhost:8000/
 
 ## Créditos
 - Zancada Uno: modelo 3D "Materials Variants Shoe" de The Khronos Group y Shopify, licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-- Nube Runner, Pulso Racer, Duna Trail, Asfalto Hi y Retro 86: modelos generados a partir de las fotos propias de la tienda con [TRELLIS](https://github.com/microsoft/TRELLIS), de Microsoft (licencia MIT), y optimizados con [glTF Transform](https://gltf-transform.dev/).
+- Nube Runner, Brisa Knit, Pulso Racer, Duna Trail, Asfalto Hi y Retro 86: modelos generados a partir de las fotos propias de la tienda con [TRELLIS](https://github.com/microsoft/TRELLIS), de Microsoft (licencia MIT; Nube Runner y Brisa Knit con TRELLIS.2), y optimizados con [glTF Transform](https://gltf-transform.dev/).
 - Brisa Knit, calcetines y kit de limpieza se muestran con foto.
 
 ## Sobre esta tienda
